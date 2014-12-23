@@ -92,13 +92,16 @@ func (d *Query) ExampleResponse() (e string) {
 
 	var dat map[string]interface{}
 
-	//TODO handle JSON and CSV by looking at accept.
-	if err := json.Unmarshal(b, &dat); err != nil {
-		return e
-	}
+	if strings.Contains(d.Accept, "json") {
+		if err := json.Unmarshal(b, &dat); err != nil {
+			return e
+		}
 
-	if d, err := json.MarshalIndent(dat, "   ", "  "); err == nil {
-		e = string(d)
+		if d, err := json.MarshalIndent(dat, "   ", "  "); err == nil {
+			e = string(d)
+		}
+	} else if strings.Contains(d.Accept, "csv") {
+		e = string(b)
 	}
 
 	return
