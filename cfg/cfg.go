@@ -24,11 +24,19 @@ import (
 //    		"Port": "8080",
 //                        "CNAME": "my.cool.service"
 //    	},
+//           "SQS": {
+// 		"AWSRegion": "ap-southeast-2",
+// 		"QueueName": "XXX",
+// 		"AccessKey": "XXX",
+// 		"SecretKey": "XXX",
+// 		"NumberOfListeners": 1
+// 	},
 //    	"Production": false
 //    }
 type Config struct {
 	DataBase   DataBase
 	Server     Server
+	SQS        SQS
 	Production bool // set true if the application is running in production mode.
 }
 
@@ -46,6 +54,11 @@ type DataBase struct {
 type Server struct {
 	Port  string // the port for the web server to listen for connections on e.g., `8080`
 	CNAME string // the public CNAME for the service.
+}
+
+type SQS struct {
+	AWSRegion, QueueName, AccessKey, SecretKey string
+	NumberOfListeners                          int // controls the number of concurrent SQS messages listeners that will be started.
 }
 
 // LoadConfig locates and loads the JSON file containing Config information for an appliation.  See the
