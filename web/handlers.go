@@ -50,7 +50,7 @@ const (
 // metrics
 var (
 	req     = expvar.NewMap("requests")
-	res     = expvar.NewMap("respones")
+	res     = expvar.NewMap("responses")
 	r2xx    metrics.Rate
 	r4xx    metrics.Rate
 	r5xx    metrics.Rate
