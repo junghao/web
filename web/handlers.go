@@ -1,19 +1,20 @@
 // Provides http handlers for writing responses to clients.  Metrics and logging about requests and reponses.
 //
-// The following metrics are exposed at http://.../debug/test
-//    * requests - counter of total requests.
-//    * responses - map of counters of response codes.
-//    * requestsPerSecond - requests per second over 30s window.
-//    * averageResponseTime - average response time (s) over 30s window.
-//    * averageDBResponseTime - average DB response time (s) over 30s window.  See below.
+// The following metrics are exposed via expvar
+//  * requests.rate - requests per s.  Updated every 20s.
+//  * requests.time - average time (s) to handle request.  Updated every 20s.
+//  * requests.timeDB - average time (s) to handle DB request.  Updated every 20s.
+//  * responses.2xx - 2xx responses per s.  Updated every 20s.
+//  * responses.4xx - 4xx responses per s.  Updated every 20s.
+//  * responses.5xx - 5xx responses per s.  Updated every 20s.
 //
-// The averageDBResponseTime metric must be updated by your application.  If your app
+// The requests.timeDB metric must be updated by your application.  If your app
 // doesn't use a DB then you can safely ignore this (the counter will stay at 0).
 // Update the metric via the exposed DBTime e.g.,
 //
 //    start := time.Now()
 //    ... do database access stuff...
-//    web.DBTime.Track(start, "DB typeV1JSON")
+//    web.DBTime.Inc(start)
 //
 package web
 
@@ -46,13 +47,16 @@ const (
 	HtmlContent = "text/html; charset=utf-8"
 )
 
-// counters for expvar
+// metrics
 var (
-	req     = expvar.NewInt("requests")
+	req     = expvar.NewMap("requests")
 	res     = expvar.NewMap("responses")
-	resTime metrics.Timer
-	DBTime  metrics.Timer
+	r2xx    metrics.Rate
+	r4xx    metrics.Rate
+	r5xx    metrics.Rate
 	reqRate metrics.Rate
+	reqTime metrics.Timer
+	DBTime  metrics.Timer
 )
 
 type Header struct {
@@ -61,18 +65,22 @@ type Header struct {
 }
 
 func init() {
+	req.Init()
 	res.Init()
-	res.Add("2xx", 0)
-	res.Add("4xx", 0)
-	res.Add("5xx", 0)
+	r2xx.Init(time.Duration(1)*time.Second, time.Duration(20)*time.Second)
+	r4xx.Init(time.Duration(1)*time.Second, time.Duration(20)*time.Second)
+	r5xx.Init(time.Duration(1)*time.Second, time.Duration(20)*time.Second)
+	reqRate.Init(time.Duration(1)*time.Second, time.Duration(20)*time.Second)
+	reqTime.Init(time.Duration(20) * time.Second)
+	DBTime.Init(time.Duration(20) * time.Second)
 
-	resTime = metrics.Timer{Period: 30 * time.Second, V: expvar.NewFloat("averageResponseTime")}
-	reqRate = metrics.Rate{Period: 30 * time.Second, Interval: 1 * time.Second, V: expvar.NewFloat("requestsPerSecond")}
-	DBTime = metrics.Timer{Period: 30 * time.Second, V: expvar.NewFloat("averageDBResponseTime")}
+	req.Set("rate", &reqRate)
+	req.Set("time", &reqTime)
+	req.Set("timeDB", &DBTime)
 
-	go resTime.Avg()
-	go reqRate.Avg()
-	go DBTime.Avg()
+	res.Set("2xx", &r2xx)
+	res.Set("4xx", &r4xx)
+	res.Set("5xx", &r5xx)
 }
 
 // OkBuf (200) - writes the content in the bytes.Buffer pointed to by b to w.
@@ -80,14 +88,14 @@ func init() {
 // if an error could occur when generating the content.
 func OkBuf(w http.ResponseWriter, r *http.Request, b *bytes.Buffer) {
 	// Haven't bothered logging 200s.
-	res.Add("2xx", 1)
+	r2xx.Inc()
 	b.WriteTo(w)
 }
 
 // Ok (200) - writes the content in the []byte pointed by b to w.
 func Ok(w http.ResponseWriter, r *http.Request, b *[]byte) {
 	// Haven't bothered logging 200s.
-	res.Add("2xx", 1)
+	r2xx.Inc()
 	w.Write(*b)
 }
 
@@ -95,7 +103,7 @@ func Ok(w http.ResponseWriter, r *http.Request, b *[]byte) {
 // else.
 func OkTrack(w http.ResponseWriter, r *http.Request) {
 	// Haven't bothered logging 200s.
-	res.Add("2xx", 1)
+	r2xx.Inc()
 }
 
 // NotFound (404) - whatever the client was looking for we haven't got it.  The message should try
@@ -103,7 +111,7 @@ func OkTrack(w http.ResponseWriter, r *http.Request) {
 // Use for things that might become available.
 func NotFound(w http.ResponseWriter, r *http.Request, message string) {
 	log.Println(r.RequestURI + " 404")
-	res.Add("4xx", 1)
+	r4xx.Inc()
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge10)
 	http.Error(w, message, http.StatusNotFound)
@@ -113,7 +121,7 @@ func NotFound(w http.ResponseWriter, r *http.Request, message string) {
 // Whatever the client was looking for we haven't got it.
 func NotFoundPage(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.RequestURI + " 404")
-	res.Add("4xx", 1)
+	r4xx.Inc()
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge10)
 	w.WriteHeader(http.StatusNotFound)
@@ -124,7 +132,7 @@ func NotFoundPage(w http.ResponseWriter, r *http.Request) {
 // generate. The message should suggest content types that can be created.
 func NotAcceptable(w http.ResponseWriter, r *http.Request, message string) {
 	log.Println(r.RequestURI + " 406")
-	res.Add("4xx", 1)
+	r4xx.Inc()
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge86400)
 	http.Error(w, message, http.StatusNotAcceptable)
@@ -133,7 +141,7 @@ func NotAcceptable(w http.ResponseWriter, r *http.Request, message string) {
 // MethodNotAllowed - the client used a method we don't allow.
 func MethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.RequestURI + " 405")
-	res.Add("4xx", 1)
+	r4xx.Inc()
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
@@ -142,7 +150,7 @@ func MethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 // Use for things that will never become available.
 func BadRequest(w http.ResponseWriter, r *http.Request, message string) {
 	log.Println(r.RequestURI + " 400")
-	res.Add("4xx", 1)
+	r4xx.Inc()
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge86400)
 	http.Error(w, message, http.StatusBadRequest)
@@ -152,7 +160,7 @@ func BadRequest(w http.ResponseWriter, r *http.Request, message string) {
 func ServiceUnavailable(w http.ResponseWriter, r *http.Request, err error) {
 	log.Println(r.RequestURI + " 503")
 	log.Printf("ERROR %s", err)
-	res.Add("5xx", 1)
+	r5xx.Inc()
 	http.Error(w, "Sad trombone.  Something went wrong and for that we are very sorry.  Please try again in a few minutes.", http.StatusServiceUnavailable)
 }
 
@@ -160,7 +168,7 @@ func ServiceUnavailable(w http.ResponseWriter, r *http.Request, err error) {
 func ServiceUnavailablePage(w http.ResponseWriter, r *http.Request, err error) {
 	log.Println(r.RequestURI + " 503")
 	log.Printf("ERROR %s", err)
-	res.Add("5xx", 1)
+	r5xx.Inc()
 	w.WriteHeader(http.StatusServiceUnavailable)
 	w.Write(error503)
 }
@@ -172,10 +180,9 @@ func ServiceUnavailablePage(w http.ResponseWriter, r *http.Request, err error) {
 // Tracks response times.
 func (hdr *Header) Get(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req.Add(1)
 		reqRate.Inc()
 		if r.Method == "GET" {
-			defer resTime.Track(time.Now(), "GET "+r.URL.RequestURI())
+			defer reqTime.Inc(time.Now())
 			log.Printf("GET %s", r.URL)
 			w.Header().Set("Cache-Control", hdr.Cache)
 			w.Header().Set("Surrogate-Control", hdr.Surrogate)
@@ -189,15 +196,4 @@ func (hdr *Header) Get(h http.Handler) http.Handler {
 
 func (hdr *Header) GetGzip(m *http.ServeMux) http.Handler {
 	return hdr.Get(GzipHandler(m))
-}
-
-// Track returns h wrapped with request tracking.
-func Track(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req.Add(1)
-		reqRate.Inc()
-		defer resTime.Track(time.Now(), r.Method+" "+r.URL.RequestURI())
-		log.Printf("%s %s", r.Method, r.URL)
-		h.ServeHTTP(w, r)
-	})
 }
