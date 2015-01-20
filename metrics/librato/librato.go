@@ -67,7 +67,7 @@ func send(m interface{}) {
 		bytes.NewBuffer(b),
 	)
 	if nil != err {
-		log.Printf("WARN creating request: %", err)
+		log.Printf("WARN creating request: %s", err)
 		return
 	}
 	req.Header.Add("Content-Type", "application/json")
