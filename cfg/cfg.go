@@ -8,36 +8,10 @@ import (
 	"strconv"
 )
 
-// Config holds configuration applications e.g.,
-//    {
-//    	"DataBase": {
-//    		"Host": "localhost",
-//    		"Name": "fits",
-//    		"User": "fits_r",
-//    		"Password": "test",
-//    		"MaxOpenConns": 30,
-//    		"MaxIdleConns": 20,
-//    		"ConnectionTimeOut": 5,
-//    		"SSLMode": "disable"
-//    	},
-//    	"Server": {
-//    		"Port": "8080",
-//                        "CNAME": "my.cool.service"
-//    	},
-//           "SQS": {
-// 		"AWSRegion": "ap-southeast-2",
-// 		"QueueName": "XXX",
-// 		"AccessKey": "XXX",
-// 		"SecretKey": "XXX",
-// 		"NumberOfListeners": 1
-// 	},
-//    	"Production": false
-//    }
 type Config struct {
-	DataBase   DataBase
-	Server     Server
-	SQS        SQS
-	Production bool // set true if the application is running in production mode.
+	DataBase  DataBase
+	WebServer WebServer
+	SQS       SQS
 }
 
 type DataBase struct {
@@ -51,9 +25,10 @@ type DataBase struct {
 	ConnectionTimeOut int    // timeout in seconds for trying to connect to the database.
 }
 
-type Server struct {
-	Port  string // the port for the web server to listen for connections on e.g., `8080`
-	CNAME string // the public CNAME for the service.
+type WebServer struct {
+	Port       string // the port for the web server to listen for connections on e.g., `8080`
+	CNAME      string // the public CNAME for the service.
+	Production bool   // set true if the application is running in production mode.
 }
 
 type SQS struct {
@@ -77,6 +52,33 @@ type SQS struct {
 //    var (
 //    	config = cfg.LoadConfig("fits")
 //    )
+//
+// A config JSON file looks like:
+// Config holds configuration applications e.g.,
+//    {
+//    	"DataBase": {
+//    		"Host": "localhost",
+//    		"Name": "fits",
+//    		"User": "fits_r",
+//    		"Password": "test",
+//    		"MaxOpenConns": 30,
+//    		"MaxIdleConns": 20,
+//    		"ConnectionTimeOut": 5,
+//    		"SSLMode": "disable"
+//    	},
+//    	"WebServer": {
+//    		"Port": "8080",
+//                     "CNAME": "my.cool.service"
+//    	            "Production": false
+//    	},
+//           "SQS": {
+// 		"AWSRegion": "ap-southeast-2",
+// 		"QueueName": "XXX",
+// 		"AccessKey": "XXX",
+// 		"SecretKey": "XXX",
+// 		"NumberOfListeners": 1
+// 	},
+//    }
 func Load(name string) Config {
 	log.SetPrefix(name + " ")
 
@@ -109,11 +111,11 @@ func Load(name string) Config {
 }
 
 // Postgres returns a connection string that is suitable for use with sql for connecting to a Postgres DB.
-func (c *Config) Postgres() string {
-	return "host=" + c.DataBase.Host +
-		" connect_timeout=" + strconv.Itoa(c.DataBase.ConnectionTimeOut) +
-		" user=" + c.DataBase.User +
-		" password=" + c.DataBase.Password +
-		" dbname=" + c.DataBase.Name +
-		" sslmode=" + c.DataBase.SSLMode
+func (d *DataBase) Postgres() string {
+	return "host=" + d.Host +
+		" connect_timeout=" + strconv.Itoa(d.ConnectionTimeOut) +
+		" user=" + d.User +
+		" password=" + d.Password +
+		" dbname=" + d.Name +
+		" sslmode=" + d.SSLMode
 }
