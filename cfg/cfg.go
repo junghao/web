@@ -16,11 +16,12 @@ import (
 var over = "/etc/sysconfig"
 
 type Config struct {
-	DataBase  *DataBase
-	WebServer *WebServer
-	SQS       *SQS
-	Env       *Env
-	Librato   *Librato
+	DataBase   *DataBase
+	WebServer  *WebServer
+	SQS        *SQS
+	Env        *Env
+	Librato    *Librato
+	Logentries *Logentries
 }
 
 // DataBase for database config.  Elements with an env tag can be overidden via env var.  See Load.
@@ -60,12 +61,17 @@ type Librato struct {
 	Key  string `doc:"key for Librato." env:"LIBRATO_KEY"`
 }
 
+type Logentries struct {
+	Token string `doc:"token for Logentries." env:"LOGENTRIES_TOKEN"`
+}
+
 func (c *Config) env() {
 	if c.Env != nil {
 		env(c.Env.Prefix, c.DataBase)
 		env(c.Env.Prefix, c.WebServer)
 		env(c.Env.Prefix, c.SQS)
 		env(c.Env.Prefix, c.Librato)
+		env(c.Env.Prefix, c.Logentries)
 	}
 }
 
@@ -125,6 +131,9 @@ func (c *Config) env() {
 //         "Librato": {
 //	           "User": "XXX",
 //                    "Key": "XXX"
+//         },
+//         "Logentries": {
+//	           "Token": "XXX"
 //         }
 //   }
 func Load() Config {
@@ -232,6 +241,7 @@ func (c *Config) EnvDoc() (d []EnvDoc, err error) {
 		d = append(d, envDoc(c.Env.Prefix, c.WebServer)...)
 		d = append(d, envDoc(c.Env.Prefix, c.SQS)...)
 		d = append(d, envDoc(c.Env.Prefix, c.Librato)...)
+		d = append(d, envDoc(c.Env.Prefix, c.Logentries)...)
 	} else {
 		err = fmt.Errorf("Found nil Prefix in the config.  Don't know how to read env var.")
 	}

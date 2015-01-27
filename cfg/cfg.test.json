@@ -22,5 +22,8 @@
 	"Librato": {
 		"User": "XXX",
 		"Key": "YYY"
+	},
+	"Logentries": {
+		"Token": "ZZZ"
 	}
 }

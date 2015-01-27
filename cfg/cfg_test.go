@@ -23,6 +23,9 @@ func TestLoad(t *testing.T) {
 	if c.Librato.User != "XXX" {
 		t.Errorf("got %s for Librato.User expected %s", c.Librato.User, "XXX")
 	}
+	if c.Logentries.Token != "ZZZ" {
+		t.Errorf("got %s for Logentries.Token expected %s", c.Logentries.Token, "ZZZ")
+	}
 
 	// change where Load will look for override files instead of /etc/sysconfig
 	over = "etc"
@@ -83,6 +86,9 @@ func TestLoad(t *testing.T) {
 	if c.Librato.User != "XXXX" {
 		t.Errorf("got %s for Librato.User expected %s", c.Librato.User, "XXXX")
 	}
+	if c.Logentries.Token != "ZZZZ" {
+		t.Errorf("got %s for Logentries.Token expected %s", c.Logentries.Token, "ZZZZ")
+	}
 
 	d, err := c.EnvDoc()
 	if err != nil {
@@ -100,6 +106,7 @@ func unset() {
 	os.Setenv("GO_CFG_TEST_DATABASE_MAX_OPEN_CONNS", "")
 	os.Setenv("GO_CFG_TEST_WEB_SERVER_PRODUCTION", "")
 	os.Setenv("LIBRATO_USER", "")
+	os.Setenv("LOGENTRIES_TOKEN", "")
 }
 
 func set() {
@@ -107,4 +114,5 @@ func set() {
 	os.Setenv("GO_CFG_TEST_DATABASE_MAX_OPEN_CONNS", "100")
 	os.Setenv("GO_CFG_TEST_WEB_SERVER_PRODUCTION", "false")
 	os.Setenv("LIBRATO_USER", "XXXX")
+	os.Setenv("LOGENTRIES_TOKEN", "ZZZZ")
 }
