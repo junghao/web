@@ -103,9 +103,13 @@ func init() {
 
 // Init can be used to Init logging to Logentries directly instead of setting an env var.
 // If the LOGENTRIES_TOKEN env var is also set then this method no-ops as logging will
-// alread be configured.
+// already be configured.
 func Init(le_token string) {
 	if os.Getenv("LOGENTRIES_TOKEN") != "" {
+		return
+	}
+
+	if le_token == "XXX" {
 		return
 	}
 
@@ -113,14 +117,13 @@ func Init(le_token string) {
 }
 
 func initLe(token string) {
-	s = sender{}
-
-	s.token = token
-	if s.token == "" {
-		log.Println("empty LOGENTRIES_TOKEN, not logging to Logentries.")
+	if token == "" {
 		return
 	}
-	s.token = s.token + " "
+
+	log.Println("Logging to Logentries")
+
+	s = sender{token: token + " "}
 
 	s.roots = x509.NewCertPool()
 	if ok := s.roots.AppendCertsFromPEM([]byte(rootPEM)); !ok {
