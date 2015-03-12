@@ -76,8 +76,9 @@ type SC3 struct {
 }
 
 type Librato struct {
-	User string `doc:"username for Librato." env:"LIBRATO_USER"` // no PREFIX for Librato - one per host is plenty.
-	Key  string `doc:"key for Librato." env:"LIBRATO_KEY"`
+	User   string `doc:"username for Librato." env:"LIBRATO_USER"` // no PREFIX for Librato - one per host is plenty.
+	Key    string `doc:"key for Librato." env:"LIBRATO_KEY"`
+	Source string `doc:"source for metrics.  Appended to host if not empty." env:"LIBRATO_SOURCE"`
 }
 
 type Logentries struct {
