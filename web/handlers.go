@@ -249,8 +249,6 @@ func (m *metric) libratoMetrics() {
 
 	librato.Init(m.libratoUser, m.libratoKey, lbr)
 
-	rate := m.interval.String()
-
 	host, err := os.Hostname()
 	if err != nil {
 		host = "unknown"
