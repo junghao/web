@@ -129,6 +129,7 @@ func NotFoundPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge10)
 	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", HtmlContent)
 	w.Write(error404)
 }
 
@@ -165,6 +166,8 @@ func BadRequestPage(w http.ResponseWriter, r *http.Request) {
 	mtr.r4xx.Inc()
 	w.Header().Set("Cache-Control", MaxAge10)
 	w.Header().Set("Surrogate-Control", MaxAge86400)
+	w.Header().Set("Content-Type", HtmlContent)
+	w.WriteHeader(http.StatusBadRequest)
 	w.Write(error400)
 	// http.Error(w, message, http.StatusBadRequest)
 }
@@ -182,6 +185,7 @@ func ServiceUnavailablePage(w http.ResponseWriter, r *http.Request, err error) {
 	log.Println(r.RequestURI + " 503")
 	log.Printf("ERROR %s", err)
 	mtr.r5xx.Inc()
+	w.Header().Set("Content-Type", HtmlContent)
 	w.WriteHeader(http.StatusServiceUnavailable)
 	w.Write(error503)
 }

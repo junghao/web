@@ -176,8 +176,11 @@ func (rt *Route) test(m string, s *httptest.Server, t *testing.T) {
 			t.Errorf("%s: wrong response code for test %s: got %d expected %d", m, r.id, res.StatusCode, rt.Response)
 		}
 
+		// Allow for error pages with type web.HtmlContent
 		if res.Header.Get("Content-Type") != rt.Content {
-			t.Errorf("%s: incorrect Content-Type for test %s: %s", m, r.id, res.Header.Get("Content-Type"))
+			if res.Header.Get("Content-Type") != web.HtmlContent {
+				t.Errorf("%s: incorrect Content-Type for test %s: %s", m, r.id, res.Header.Get("Content-Type"))
+			}
 		}
 
 		if res.Header.Get("Cache-Control") != rt.Cache {
