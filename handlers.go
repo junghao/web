@@ -160,6 +160,15 @@ func BadRequest(w http.ResponseWriter, r *http.Request, message string) {
 	http.Error(w, message, http.StatusBadRequest)
 }
 
+func BadRequestPage(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.RequestURI + " 400")
+	mtr.r4xx.Inc()
+	w.Header().Set("Cache-Control", MaxAge10)
+	w.Header().Set("Surrogate-Control", MaxAge86400)
+	w.Write(error400)
+	// http.Error(w, message, http.StatusBadRequest)
+}
+
 // ServiceUnavailable (503) - some sort of internal server error.
 func ServiceUnavailable(w http.ResponseWriter, r *http.Request, err error) {
 	log.Println(r.RequestURI + " 503")
