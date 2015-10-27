@@ -221,7 +221,7 @@ func ParamsExist(w http.ResponseWriter, r *http.Request, params ...string) bool 
 	}
 }
 
-// GetAPI creates an http handler that only responds to http GET requests.  All other methods are an error.
+// GetAPI creates an http handler that only responds to http GET requests.  All other methods are an error (except POST for "/search").
 // Sets default Cache-Control and Surrogate-Control headers.
 // Sets the Vary header to Accept for use with REST APIs and upstream caching.
 // Increments the request counter.
@@ -229,9 +229,11 @@ func ParamsExist(w http.ResponseWriter, r *http.Request, params ...string) bool 
 func (hdr *Header) Get(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mtr.reqRate.Inc()
-		if r.Method == "GET" {
+		isSearch := r.URL.Path == "/search"
+
+		if (r.Method == "GET" && !isSearch) || (r.Method == "POST" && isSearch) {
 			defer mtr.resTime.Inc(time.Now())
-			log.Printf("GET %s", r.URL)
+			log.Printf("%s %s", r.Method, r.URL)
 			w.Header().Set("Cache-Control", hdr.Cache)
 			w.Header().Set("Surrogate-Control", hdr.Surrogate)
 			w.Header().Add("Vary", hdr.Vary)
